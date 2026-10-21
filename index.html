@@ -38,12 +38,32 @@ textarea{min-height:84px}
 .nav button{flex:1;border:0;background:none;padding:9px 0 8px;font:12px Sarabun;color:var(--mut)}
 .nav button i{display:block;font-style:normal;font-size:20px}.nav button.on{color:var(--o);font-weight:700}
 .view{display:none}.view.on{display:block}
-.scan{position:relative;width:100%;max-width:360px;margin:auto;aspect-ratio:3/4;border-radius:20px;overflow:hidden;background:#000}
-.scan video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-.scan .ring{position:absolute;inset:12% 14% 18%;border:3px dashed rgba(255,255,255,.8);border-radius:50%}
-.scan .ring.good{border:4px solid #22C55E}
-.scanmsg{text-align:center;font:600 16px Prompt;margin:12px 0 6px;min-height:24px}
-.bar{height:8px;background:var(--line);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--o);transition:width .3s}
+/* ---------- หน้าจอสแกนใบหน้าแบบเต็มจอ: ปุ่มยกเลิกและความคืบหน้าอยู่ในจอเสมอ ---------- */
+.scanfs{position:fixed;inset:0;z-index:40;background:#0B0D10;color:#fff;display:flex;flex-direction:column;height:100vh;height:100dvh}
+.scanfs[hidden],.scanfs [hidden]{display:none!important}
+.scan-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:#15181D}
+.scan-top b{font:600 16px Prompt,Sarabun,sans-serif}
+.xbtn{border:0;border-radius:99px;background:rgba(255,255,255,.14);color:#fff;font:600 14px Sarabun,sans-serif;padding:9px 14px;min-height:40px}
+.scan-stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#000}
+.scan-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.ring{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:min(72%,calc(78vw * 4 / 3));aspect-ratio:3/4;max-width:86%;border:3px dashed rgba(255,255,255,.75);border-radius:50%;transition:border-color .2s}
+.ring.good{border:4px solid #22C55E}
+.ring.warn{border:4px solid #F59E0B}
+.hud{position:absolute;left:10px;right:10px;top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 10px;font-size:12.5px;font-weight:600;background:rgba(0,0,0,.55);color:#D1D5DB;border:1px solid rgba(255,255,255,.18)}
+.chip.on{background:rgba(242,106,27,.9);color:#fff;border-color:transparent}
+.chip.done{background:rgba(22,163,74,.92);color:#fff;border-color:transparent}
+.chip.time{margin-left:auto;background:rgba(0,0,0,.55)}
+.cue{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(0,0,0,.6);border-radius:12px;padding:8px 14px;font:600 15px Prompt,Sarabun,sans-serif;text-align:center;max-width:92%}
+.dbg{position:absolute;left:8px;bottom:56px;margin:0;background:rgba(0,0,0,.65);color:#A7F3D0;font:11px/1.35 monospace;padding:6px 8px;border-radius:8px;white-space:pre}
+.scan-bottom{background:#15181D;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.scanmsg{text-align:center;font:600 16px Prompt,Sarabun,sans-serif;margin:0 0 8px;min-height:22px}
+.bar{height:8px;background:rgba(255,255,255,.18);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--o);transition:width .3s}
+.scan-hint{color:#9CA3AF;font-size:13px;text-align:center;margin:8px 0 0}
+.scan-actions{display:flex;gap:8px;margin-top:10px}
+.scan-actions .btn{margin-top:0}
+.btn.ghostd{background:rgba(255,255,255,.12);color:#fff}
+@media (max-height:600px){.scan-hint{display:none}.scanmsg{font-size:15px}}
 .alert{padding:12px;border-radius:12px;margin:10px 0;line-height:1.55}
 .alert.err{background:#FEE2E2;color:#991B1B}.alert.ok{background:#DCFCE7;color:#166534}.alert.warn{background:#FFF7ED;color:#9A3412;border:1px solid #FDBA74}
 .tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}
@@ -88,15 +108,32 @@ th{background:var(--bg);font-weight:700}td.n,th.n{text-align:center}
     </div>
   </section>
 
-  <!-- สแกนใบหน้า -->
-  <section class="view" id="v-scan">
-    <div class="card">
-      <h2 id="scanTitle">สแกนใบหน้า</h2>
-      <div class="scan"><video id="video" playsinline muted autoplay></video><div class="ring" id="ring"></div></div>
-      <div class="scanmsg" id="scanMsg">กำลังเปิดกล้อง...</div>
-      <div class="bar"><i id="scanBar"></i></div>
-      <p class="mut" id="scanHint" style="text-align:center">จัดใบหน้าให้อยู่ในวงกลม ในที่มีแสงสว่าง</p>
-      <button class="btn ghost" onclick="cancelScan()">ยกเลิก</button>
+  <!-- สแกนใบหน้า: เต็มจอ เห็นความคืบหน้าและปุ่มยกเลิกทุกรุ่น -->
+  <section class="scanfs" id="scanOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+    <div class="scan-top"><b id="scanTitle">สแกนใบหน้า</b><button class="xbtn" type="button" onclick="cancelScan()">✕ ยกเลิก</button></div>
+    <div class="scan-stage">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="ring" id="ring"></div>
+      <div class="hud" id="hud">
+        <span class="chip" id="stFace">① พบใบหน้า</span>
+        <span class="chip" id="stRead">② อ่านใบหน้า</span>
+        <span class="chip" id="stLive">③ ยืนยันตัวจริง</span>
+        <span class="chip time" id="stTime"></span>
+      </div>
+      <div class="cue" id="scanCue" hidden></div>
+      <pre class="dbg" id="dbg" hidden></pre>
+    </div>
+    <div class="scan-bottom">
+      <div class="scanmsg" id="scanMsg" aria-live="polite">กำลังเปิดกล้อง...</div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="scanBarWrap"><i id="scanBar"></i></div>
+      <p class="scan-hint" id="scanHint">จัดใบหน้าให้อยู่ในวงรี ในที่มีแสงสว่าง หันหน้าเข้าหาแสง</p>
+      <div class="scan-actions" id="scanRetry" hidden>
+        <button class="btn pri" type="button" id="btnRetry">ลองอีกครั้ง</button>
+        <button class="btn ghostd" type="button" onclick="cancelScan()">ยกเลิก</button>
+      </div>
+      <div class="scan-actions" id="scanCancelRow">
+        <button class="btn ghostd" type="button" onclick="cancelScan()">ยกเลิกการสแกน</button>
+      </div>
     </div>
   </section>
 
@@ -194,7 +231,7 @@ const CONFIG = {
   API_URL: 'https://vfphjmvroyqfupttyxmo.supabase.co/functions/v1/dynamic-service',   // Supabase (ลงเวลา/ลา/รายงานบนจอ)
   GAS_URL: 'https://script.google.com/macros/s/AKfycbwZp3Uk-SwN5g5uBVzD0CPalHlti9NW7Kop_S-aWk7rjcdYmsAI3Dk5-lBgjnv_npqm/exec', // Google (PDF A4 และสำรองข้อมูลสิ้นปี)
   LIFF_ID: '2012125143-BfKxY2bq',
-  REQUIRE_BLINK: true,           // ต้องกระพริบตาขณะสแกนลงเวลา (กันใช้รูปถ่าย)
+  REQUIRE_BLINK: true,           // ต้องยืนยันตัวจริงขณะลงเวลา: หันหน้าซ้าย/ขวาเล็กน้อย หรือกระพริบตา (กันใช้รูปถ่าย) · ใส่ ?debug=1 ท้ายลิงก์เพื่อดูค่าการสแกน
   MODEL_URL: 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/'
 };
 /* ===================================================================== */
@@ -303,62 +340,135 @@ function getLocation() {
 function haversine(a, b, c, d) { const R=6371000, r=Math.PI/180, x=Math.sin((c-a)*r/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin((d-b)*r/2)**2; return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x)); }
 
 /* ---------------- สแกนใบหน้า (face-api.js) ---------------- */
+// การตั้งค่าการสแกน (ปรับได้)
+const SCAN = {
+  MIN_FACE: 0.20,      // ใบหน้าต้องกว้างอย่างน้อย 20% ของด้านที่สั้นกว่าของภาพ
+  SCORE: 0.4,          // ความมั่นใจขั้นต่ำของตัวตรวจจับใบหน้า
+  TIMEOUT: 45000,      // เวลาสแกน (เริ่มนับเมื่อเห็นใบหน้าครั้งแรก)
+  NO_FACE_WAIT: 45000, // รอให้เห็นใบหน้าครั้งแรกได้นานเท่านี้
+  YAW_FRONT: 0.12,     // หน้าตรง: จมูกเบี่ยงจากกึ่งกลางตาไม่เกิน 12% ของระยะตา
+  YAW_TURN: 0.20       // หันหน้า: จมูกเบี่ยงเกิน 20%
+};
+const DEBUG = qs.get('debug') === '1';
 let modelsReady = false;
 async function loadModels() {
   if (modelsReady) return;
-  $('scanMsg').textContent = 'กำลังโหลดโมเดลจดจำใบหน้า (ครั้งแรกอาจใช้ 10-20 วินาที)...';
+  scanMsg('กำลังโหลดโมเดลจดจำใบหน้า (ครั้งแรกอาจใช้ 10-20 วินาที)...');
+  try { await faceapi.tf.setBackend('webgl'); } catch (e) { /* ใช้ backend ที่มี */ }
+  await faceapi.tf.ready();
   await faceapi.nets.tinyFaceDetector.loadFromUri(CONFIG.MODEL_URL);
   await faceapi.nets.faceLandmark68Net.loadFromUri(CONFIG.MODEL_URL);
   await faceapi.nets.faceRecognitionNet.loadFromUri(CONFIG.MODEL_URL);
+  // อุ่นเครื่อง: รันครั้งแรกบนภาพว่าง เพื่อไม่ให้เฟรมแรกของการสแกนจริงช้า
+  try { const c = document.createElement('canvas'); c.width = c.height = 160; await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 160 })).withFaceLandmarks(); } catch (e) {}
   modelsReady = true;
 }
 async function openCamera() {
-  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 640 } }, audio: false });
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false });
   const v = $('video'); v.srcObject = stream; await v.play();
+  if (v.readyState < 2) await new Promise(r => v.onloadeddata = r);
 }
 function closeCamera() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; }
-function cancelScan() { if (scanState) scanState.cancel = true; closeCamera(); show(ME && ME.registered ? 'home' : 'register'); }
+function openScanUI(title) {
+  $('scanTitle').textContent = title; $('scanOverlay').hidden = false; document.body.style.overflow = 'hidden';
+  $('scanRetry').hidden = true; $('scanCancelRow').hidden = false; $('scanCue').hidden = true; $('dbg').hidden = !DEBUG;
+  setProgress(0); ['stFace','stRead','stLive'].forEach(id => $(id).className = 'chip'); $('stTime').textContent = ''; $('ring').className = 'ring';
+}
+function closeScanUI() { $('scanOverlay').hidden = true; document.body.style.overflow = ''; }
+function cancelScan() { if (scanState) scanState.cancel = true; if (scanState && scanState.wake) scanState.wake(); closeCamera(); closeScanUI(); show(ME && ME.registered ? 'home' : 'register'); if (ME && ME.registered) renderHome(); }
+function scanMsg(t) { $('scanMsg').textContent = t; }
+function cue(t) { $('scanCue').hidden = !t; $('scanCue').textContent = t || ''; }
+function setProgress(p) { const v = Math.max(0, Math.min(100, Math.round(p))); $('scanBar').style.width = v + '%'; $('scanBarWrap').setAttribute('aria-valuenow', v); }
+function chip(id, state) { $(id).className = 'chip' + (state ? ' ' + state : ''); }
 const dist2 = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
 function ear(eye) { return (dist2(eye[1], eye[5]) + dist2(eye[2], eye[4])) / (2 * dist2(eye[0], eye[3])); }
+// ทิศการหันหน้า: ตำแหน่งปลายจมูกเทียบกึ่งกลางหางตาทั้งสองข้าง (0 = หน้าตรง)
+function yaw(lm) { const p = lm.positions, l = p[36], r = p[45], n = p[30]; const mid = (l.x + r.x) / 2, w = Math.abs(r.x - l.x) || 1; return (n.x - mid) / w; }
 function meanDesc(list) { const m = new Array(128).fill(0); list.forEach(d => d.forEach((v, i) => m[i] += v / list.length)); return m; }
 function snapshot() { const v=$('video'), c=document.createElement('canvas'), w=240; c.width=w; c.height=Math.round(w*v.videoHeight/v.videoWidth);
   const g=c.getContext('2d'); g.translate(w,0); g.scale(-1,1); g.drawImage(v,0,0,c.width,c.height); return c.toDataURL('image/jpeg',0.7); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/** mode: 'register' (เก็บ 5 ตัวอย่าง) | 'checkin' (กระพริบตา + 2 ตัวอย่าง) */
+/** mode: 'register' (เก็บ 5 ตัวอย่างหน้าตรง) | 'checkin' (2 ตัวอย่าง + ยืนยันตัวจริงด้วยการหันหน้าหรือกระพริบตา) */
 async function runScan(mode) {
-  show('scan'); $('scanBar').style.width = '0'; $('ring').classList.remove('good');
-  $('scanTitle').textContent = mode === 'register' ? 'บันทึกใบหน้า (ลงทะเบียน)' : 'สแกนใบหน้าลงเวลามา';
+  openScanUI(mode === 'register' ? 'บันทึกใบหน้า (ลงทะเบียน)' : 'สแกนใบหน้าลงเวลามา');
   const st = scanState = { cancel: false };
-  await loadModels(); await openCamera();
-  const need = mode === 'register' ? 5 : 2, samples = [], t0 = Date.now();
-  let base = [], blinked = !(mode === 'checkin' && CONFIG.REQUIRE_BLINK), closed = false, lastAt = 0;
-  const opt = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+  try { await loadModels(); await openCamera(); }
+  catch (e) { closeCamera(); closeScanUI(); throw new Error(/Permission|NotAllowed/i.test(e.name + e.message) ? 'ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตกล้องให้แอป LINE ในการตั้งค่ามือถือ' : 'เปิดกล้องไม่สำเร็จ: ' + e.message); }
+  const need = mode === 'register' ? 5 : 2;
+  const needLive = mode === 'checkin' && CONFIG.REQUIRE_BLINK; // ใช้ค่าเดิม: true = ต้องยืนยันตัวจริง
+  let samples, photo, live, firstFaceAt, startAt, earMax, closed, turned, frames, fpsT, fps, lastSample;
+  const reset = () => { samples = []; photo = null; live = !needLive; firstFaceAt = 0; startAt = Date.now(); earMax = []; closed = false; turned = false; frames = 0; fpsT = Date.now(); fps = 0; lastSample = 0; };
+  reset();
+  let input = 320;
+  // ถามผู้ใช้ว่าจะลองต่อหรือไม่ (ไม่เด้งออกเอง)
+  const askRetry = async (msg) => {
+    scanMsg(msg); cue(''); $('scanRetry').hidden = false; $('scanCancelRow').hidden = true; $('ring').className = 'ring warn';
+    await new Promise(r => { st.wake = r; $('btnRetry').onclick = r; });
+    $('scanRetry').hidden = true; $('scanCancelRow').hidden = false; reset();
+  };
   while (!st.cancel) {
-    if (Date.now() - t0 > 30000) { closeCamera(); throw new Error('หมดเวลาสแกน ไม่พบใบหน้าที่ชัดเจน กรุณาลองใหม่ในที่มีแสงสว่าง'); }
-    const r = await faceapi.detectSingleFace($('video'), opt).withFaceLandmarks().withFaceDescriptor();
-    if (!r) { $('scanMsg').textContent = 'ไม่พบใบหน้า — มองกล้อง'; $('ring').classList.remove('good'); continue; }
-    const vw = $('video').videoWidth, bw = r.detection.box.width;
-    if (bw < vw * 0.28) { $('scanMsg').textContent = 'ขยับใบหน้าเข้าใกล้กล้องอีกนิด'; continue; }
-    $('ring').classList.add('good');
+    const now = Date.now();
+    // เวลา: ก่อนเห็นหน้านับจากเปิดกล้อง หลังเห็นหน้านับจากครั้งแรกที่เห็น
+    const left = firstFaceAt ? SCAN.TIMEOUT - (now - firstFaceAt) : SCAN.NO_FACE_WAIT - (now - startAt);
+    $('stTime').textContent = 'เหลือ ' + Math.max(0, Math.ceil(left / 1000)) + ' วิ';
+    if (left <= 0) {
+      await askRetry(firstFaceAt ? 'หมดเวลา — ลองอีกครั้งในที่สว่าง หน้าตรง ถือมือถือระดับสายตา' : 'ไม่พบใบหน้า — หันหน้าเข้าหาแสง ไม่ย้อนแสง แล้วลองอีกครั้ง');
+      continue;
+    }
+    const opt = new faceapi.TinyFaceDetectorOptions({ inputSize: input, scoreThreshold: SCAN.SCORE });
+    const r = await faceapi.detectSingleFace($('video'), opt).withFaceLandmarks();
+    if (st.cancel) break;
+    frames++; if (now - fpsT > 2000) { fps = frames * 1000 / (now - fpsT); frames = 0; fpsT = now; if (fps < 3 && input > 224) input = 224; }
+    const v = $('video'), short = Math.min(v.videoWidth, v.videoHeight) || 1;
+    if (!r) {
+      chip('stFace', firstFaceAt ? '' : 'on'); $('ring').className = 'ring';
+      scanMsg('ไม่พบใบหน้า — มองกล้อง ให้ใบหน้าอยู่ในวงรี'); cue('');
+      if (DEBUG) $('dbg').textContent = `backend ${faceapi.tf.getBackend()} | fps ${fps.toFixed(1)} | input ${input}\nไม่พบใบหน้า`;
+      continue;
+    }
+    if (!firstFaceAt) firstFaceAt = Date.now();
+    const ratio = r.detection.box.width / short, score = r.detection.score;
     const e = (ear(r.landmarks.getLeftEye()) + ear(r.landmarks.getRightEye())) / 2;
-    if (base.length < 4) { base.push(e); }
-    const b = base.reduce((a, x) => a + x, 0) / base.length;
-    if (!blinked && base.length >= 4) {
-      if (e < b * 0.72) closed = true; else if (closed && e > b * 0.88) blinked = true;
+    const y = yaw(r.landmarks);
+    if (DEBUG) $('dbg').textContent = `backend ${faceapi.tf.getBackend()} | fps ${fps.toFixed(1)} | input ${input}\nใบหน้า ${(ratio*100).toFixed(0)}% | score ${score.toFixed(2)}\nEAR ${e.toFixed(3)} | yaw ${y.toFixed(2)} | ตัวอย่าง ${samples.length}/${need}`;
+    if (ratio < SCAN.MIN_FACE) { chip('stFace', 'on'); $('ring').className = 'ring warn'; scanMsg('ขยับมือถือเข้าใกล้ใบหน้าอีกนิด'); cue(''); continue; }
+    chip('stFace', 'done'); $('ring').className = 'ring good';
+
+    // ยืนยันตัวจริง (กันใช้รูปถ่าย): หันหน้าซ้าย/ขวาเล็กน้อย หรือ กระพริบตา อย่างใดอย่างหนึ่ง
+    earMax.push(e); if (earMax.length > 12) earMax.shift();
+    const em = Math.max(...earMax);
+    if (needLive && !live) {
+      if (Math.abs(y) > SCAN.YAW_TURN) turned = true;
+      if (earMax.length >= 3 && e < em * 0.78) closed = true;
+      else if (closed && e > em * 0.9) live = true;
+      if (turned && Math.abs(y) < SCAN.YAW_FRONT) live = true;  // หันแล้วกลับมาหน้าตรง
     }
-    const eyesOpen = base.length < 4 || e > b * 0.85;
-    if (eyesOpen && samples.length < need && Date.now() - lastAt > 250) {
-      if (!samples.length || faceapi.euclideanDistance(samples[0], r.descriptor) < 0.5) { samples.push(Array.from(r.descriptor)); lastAt = Date.now(); }
+    const frontal = Math.abs(y) < SCAN.YAW_FRONT, eyesOpen = earMax.length < 3 || e > em * 0.82;
+
+    // เก็บรหัสใบหน้าเฉพาะเฟรมหน้าตรง ลืมตา (คำนวณเฉพาะตอนนี้ เพื่อให้เฟรมอื่นเร็ว)
+    if (frontal && eyesOpen && samples.length < need && Date.now() - lastSample > 300) {
+      const full = await faceapi.detectSingleFace(v, opt).withFaceLandmarks().withFaceDescriptor();
+      if (full && (!samples.length || faceapi.euclideanDistance(samples[0], full.descriptor) < 0.5)) {
+        samples.push(Array.from(full.descriptor)); lastSample = Date.now();
+        if (!photo && mode === 'checkin') photo = snapshot();
+      }
     }
-    const prog = (samples.length / need) * (blinked ? 1 : 0.7);
-    $('scanBar').style.width = Math.round(prog * 100) + '%';
-    $('scanMsg').textContent = samples.length < need ? 'ถือนิ่ง ๆ กำลังอ่านใบหน้า...' : (blinked ? 'สำเร็จ ✓' : '👀 กรุณากระพริบตา 1 ครั้ง');
-    if (samples.length >= need && blinked) {
-      const photo = mode === 'checkin' ? snapshot() : null;
-      closeCamera(); return { descriptor: meanDesc(samples), photo };
+    chip('stRead', samples.length >= need ? 'done' : 'on');
+    chip('stLive', !needLive ? 'done' : live ? 'done' : samples.length >= need ? 'on' : '');
+    setProgress(10 + (samples.length / need) * (needLive ? 60 : 90) + (needLive && live ? 30 : 0));
+
+    if (samples.length < need) { scanMsg(frontal ? 'ถือนิ่ง ๆ กำลังอ่านใบหน้า...' : 'มองตรงเข้ากล้อง'); cue(''); }
+    else if (!live) { scanMsg('ยืนยันว่าเป็นตัวจริง'); cue(turned ? '↔ กลับมามองตรงกล้อง' : '↔ หันหน้าไปซ้ายหรือขวาเล็กน้อย (หรือกระพริบตา 1 ครั้ง)'); }
+    if (samples.length >= need && live) {
+      setProgress(100); scanMsg('สำเร็จ ✓'); cue('');
+      if (!photo && mode === 'checkin') photo = snapshot();
+      await sleep(250);
+      closeCamera(); closeScanUI();
+      return { descriptor: meanDesc(samples), photo };
     }
   }
-  closeCamera(); return null;
+  closeCamera(); closeScanUI(); return null;
 }
 
 async function startRegister() {
@@ -366,26 +476,27 @@ async function startRegister() {
   if (fullName.length < 4 || !dept) return toast('กรุณากรอกชื่อ-สกุล และเลือกกลุ่มสาระ/แผนก', 'err');
   try {
     const r = await runScan('register'); if (!r) return;
-    $('scanMsg').textContent = 'กำลังบันทึก...';
+    toast('กำลังบันทึก...', 'ok', 2000);
     const res = await api('register', { fullName, position, dept, descriptor: r.descriptor });
     toast('ลงทะเบียนสำเร็จ ✅ สิทธิ์: ' + res.roleName);
     ME = await api('me'); renderHeader(); renderHome(); $('nav').style.display = 'flex'; show('home');
     if (ME.staff.role === 'admin' && ME.yearEnd && ME.yearEnd.needSetup) fiscalModal('คุณเป็นผู้ดูแลระบบคนแรก กรุณากำหนดปีงบประมาณ');
-  } catch (e) { toast(esc(e.message), 'err', 7000); show('register'); }
+  } catch (e) { closeScanUI(); toast(esc(e.message), 'err', 7000); show('register'); }
 }
 
 async function startCheckIn() {
   try {
     $('btnIn').disabled = true;
     const locP = getLocation();
-    const r = await runScan('checkin'); if (!r) return;
-    $('scanMsg').textContent = 'กำลังตรวจพิกัดและบันทึก...';
+    locP.catch(() => {}); // ข้อผิดพลาด GPS จะแจ้งหลังสแกนเสร็จ
+    const r = await runScan('checkin'); if (!r) { renderHome(); return; }
+    toast('กำลังตรวจพิกัดและบันทึก...', 'ok', 2500);
     const loc = await locP;
     const res = await api('checkIn', { descriptor: r.descriptor, photo: r.photo, lat: loc.lat, lng: loc.lng, accuracy: loc.acc });
     ME.todayStatus = { code: res.status === 'สาย' ? 'LATE' : 'PRESENT', label: res.status === 'สาย' ? 'มาสาย' : 'มาปกติ', timeIn: res.time.slice(0,5) };
     renderHome(); show('home');
     toast(`ลงเวลามาสำเร็จ ✅ ${res.time.slice(0,5)} น. • ${res.status} • ห่างโรงเรียน ${res.distText}`, res.status === 'สาย' ? 'warn' : 'ok', 6000);
-  } catch (e) { closeCamera(); show('home'); renderHome(); toast(esc(e.message), 'err', 8000); }
+  } catch (e) { closeCamera(); closeScanUI(); show('home'); renderHome(); toast(esc(e.message), 'err', 8000); }
 }
 
 /* ---------------- ลงเวลากลับ ---------------- */
